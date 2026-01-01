@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>溫馨理財手帳 V14</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --oatmeal: #f5f2ed; --warm-gray: #5d544e; --earth-green: #5a705c; --wood-brown: #8a6d4d; --latte: #e8e2d6; }
+        body { background-color: var(--oatmeal); font-family: sans-serif; color: var(--warm-gray); margin: 0; -webkit-tap-highlight-color: transparent; }
+        .warm-card { background: white; border-radius: 24px; border: 1px solid var(--latte); margin-bottom: 1rem; }
+        .btn-green { background-color: var(--earth-green) !important; color: white !important; border-radius: 18px; font-weight: bold; }
+        .btn-main { background-color: var(--wood-brown) !important; color: white !important; padding: 14px; border-radius: 16px; font-weight: bold; width: 100%; }
+        .btn-action-big { padding: 20px !important; font-size: 18px !important; width: 100%; display: block; border-radius: 20px; }
+        .input-box { background: #faf9f7; border: 1.5px solid var(--latte); border-radius: 14px; padding: 12px; width: 100%; outline: none; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-blur: 3px; }
+        .modal-content { background: white; width: 92%; max-width: 400px; border-radius: 28px; padding: 24px; max-height: 85vh; overflow-y: auto; }
+        .grid-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 15px; }
+        .save-cell { aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; border: 1px solid var(--latte); background: white; cursor: pointer; }
+        .cell-done { background: var(--earth-green) !important; color: white !important; border-color: var(--earth-green) !important; }
+        .tab-active { color: var(--wood-brown); font-weight: bold; position: relative; }
+        .tab-active::after { content: ''; position: absolute; bottom: -8px; left: 20%; width: 60%; height: 3px; background: var(--wood-brown); border-radius: 10px; }
+        .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(245, 242, 237, 0.9); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; }
+    </style>
+</head>
+<body class="pb-20">
+
+    <div id="loader" class="loading-overlay">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8a6d4d]"></div>
+        <p class="mt-4 text-xs font-bold text-[#8a6d4d]">同步中...</p>
+    </div>
+
+    <div class="pt-10 pb-4 text-center">
+        <h1 class="text-2xl font-serif font-bold tracking-widest">生活手帳</h1>
+        <p id="randomSlogan" class="text-[11px] text-[#8a6d4d] mt-1 italic"></p>
+    </div>
+
+    <nav class="sticky top-0 z-50 bg-[#f5f2ed]/90 backdrop-blur-md border-b border-[#e8e2d6] mb-6">
+        <div class="max-w-md mx-auto flex justify-around py-4">
+            <button onclick="switchPage('ledger')" id="nav-ledger" class="text-sm tab-active">日常記帳</button>
+            <button onclick="switchPage('savings')" id="nav-savings" class="text-sm text-gray-400">儲蓄挑戰</button>
+        </div>
+    </nav>
+
+    <div class="max-w-md mx-auto px-5">
+        
+        <div id="page-ledger">
+            <div class="warm-card p-8 text-center">
+                <p class="text-[10px] tracking-widest text-gray-400 uppercase mb-1">Current Balance</p>
+                <h2 class="text-4xl font-serif font-bold text-[#5d544e]" id="balanceDisplay">$ 0</h2>
+                <button onclick="fetchCloudData()" class="mt-4 text-[10px] text-[#8a6d4d] font-bold underline">刷新雲端數據</button>
+            </div>
+
+            <div class="warm-card p-6">
+                <div class="flex justify-center gap-10 mb-6 text-sm">
+                    <button id="tabExp" onclick="changeType('expense')" class="font-bold text-[#8a6d4d] border-b-2 border-[#8a6d4d] pb-1">支出</button>
+                    <button id="tabInc" onclick="changeType('income')" class="text-gray-400 pb-1">收入</button>
+                </div>
+                <div class="space-y-4">
+                    <input type="date" id="dateInput" class="input-box">
+                    <div class="grid grid-cols-2 gap-3">
+                        <select id="catInput" class="input-box"></select>
+                        <select id="methodInput" class="input-box"></select>
+                    </div>
+                    <input type="number" id="amtInput" placeholder="輸入金額" class="input-box text-lg font-bold" inputmode="decimal">
+                    <input type="text" id="noteInput" placeholder="寫點什麼紀錄生活..." class="input-box">
+                    <button onclick="saveToCloud()" class="btn-main shadow-lg">記錄這一筆</button>
+                </div>
+            </div>
+            <div id="list" class="space-y-4 pb-10"></div>
+        </div>
+
+        <div id="page-savings" class="hidden">
+            <div class="warm-card p-6 flex justify-between items-center bg-white shadow-sm">
+                <div>
+                    <p class="text-[10px] text-gray-400 font-bold tracking-widest">目前總存款</p>
+                    <h2 class="text-3xl font-serif font-bold text-[#5a705c]" id="totalSavingsDisplay">$ 0</h2>
+                </div>
+                <i class="fas fa-piggy-bank text-2xl text-[#5a705c]"></i>
+            </div>
+            <button onclick="openCreateModal()" class="btn-green btn-action-big shadow-lg mb-8 font-bold">+ 建立新的儲蓄計畫</button>
+            <div id="goalList" class="space-y-6"></div>
+        </div>
+    </div>
+
+    <div id="createModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="font-bold text-center mb-6 text-lg">✨ 新計畫設定</h3>
+            <div class="space-y-5">
+                <input type="text" id="newName" placeholder="計畫名稱" class="input-box">
+                <input type="number" id="newTarget" placeholder="單次金額 (固定/52週)" class="input-box" inputmode="numeric">
+                <select id="newMode" class="input-box">
+                    <option value="365">📅 365天挑戰 (1~365格)</option>
+                    <option value="52">📅 52週挑戰 (52格)</option>
+                    <option value="random">🎲 隨機存錢 (50~200元)</option>
+                    <option value="fixed">💰 固定存錢 (確認即存)</option>
+                </select>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeModals()" class="flex-1 py-4 text-sm font-bold text-gray-400">取消</button>
+                    <button onclick="confirmCreate()" class="flex-1 btn-green py-4 text-sm shadow-md">確認建立</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="saveActionModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modalGoalName" class="font-bold text-lg text-[#5d544e]"></h3>
+                <button onclick="closeModals()" class="text-gray-400"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="modalActionArea"></div>
+            <hr class="my-6 border-latte">
+            <button onclick="undoLastSave()" class="w-full py-3 mb-2 text-sm text-[#8a6d4d] border border-[#e8e2d6] rounded-xl font-bold">反悔！取消上一筆格</button>
+            <button onclick="deleteCurrentGoal()" class="w-full py-4 text-sm text-red-400 font-bold bg-red-50 rounded-xl mt-4">徹底刪除計畫</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbzusfr8U8-7FmAwY52IRLK5JdNE631q4YPXQlmVE3omDoMshTDbvHaK2ZZBVFPX3mU4YA/exec";
+        const slogans = ["每一筆記錄，都是生活的樣子 ✨", "存錢，是為了遇見更好的自己 🕊️", "今天也要對自己溫柔一點 ☕"];
+        
+        let records = [];
+        let goals = JSON.parse(localStorage.getItem('v14_savings_data')) || [];
+        let currentType = 'expense';
+        let activeGoalId = null;
+
+        const cats = { expense: ['🍽️ 飲食', '🚗 交通', '🎮 娛樂', '🛍️ 購物', '🔧 其他'], income: ['💰 薪資', '📈 投資', '✨ 其他'] };
+        const methods = { expense: ['💵 現金', '💳 信用卡', '🟢 LINE Pay'], income: ['🏦 銀行轉帳', '💵 現金'] };
+
+        window.onload = () => {
+            document.getElementById('dateInput').valueAsDate = new Date();
+            refreshForm(); updateSlogan(); renderGoals(); fetchCloudData();
+        };
+
+        // --- 儲蓄核心邏輯 ---
+        function openCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
+        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); }
+        
+        function confirmCreate() {
+            const name = document.getElementById('newName').value;
+            const target = parseFloat(document.getElementById('newTarget').value) || 0;
+            const mode = document.getElementById('newMode').value;
+            if (!name) return alert("請輸入名稱");
+            let total = target;
+            if (mode === '365') total = 66795;
+            if (mode === '52') total = target * 52;
+            goals.push({ id: Date.now(), name, target: total, unitAmt: target, mode, current: 0, history: [] });
+            saveAndRender(); closeModals();
+        }
+
+        function openSaveAction(id) {
+            activeGoalId = id;
+            const g = goals.find(x => x.id === id);
+            document.getElementById('modalGoalName').innerText = g.name;
+            const area = document.getElementById('modalActionArea');
+            area.innerHTML = '';
+
+            if (g.mode === '365' || g.mode === '52') {
+                const count = (g.mode === '365') ? 365 : 52;
+                area.innerHTML = `<div class="grid-container" id="cellGrid"></div>`;
+                const grid = area.querySelector('#cellGrid');
+                for (let i = 1; i <= count; i++) {
+                    const amt = (g.mode === '365') ? i : g.unitAmt;
+                    const isDone = (g.mode === '365') ? g.history.includes(i) : g.history.length >= i;
+                    grid.innerHTML += `<div onclick="${isDone?'':'doSave('+amt+','+i+')'}" class="save-cell ${isDone?'cell-done':''}">$${amt}</div>`;
+                }
+            } else if (g.mode === 'random') {
+                const rand = Math.floor(Math.random() * (200 - 50 + 1)) + 50;
+                area.innerHTML = `<div class="text-center py-6"><h1 class="text-5xl font-bold text-[#8a6d4d] mb-6">$ ${rand}</h1><button onclick="doSave(${rand}, ${rand})" class="btn-green btn-action-big shadow-xl font-bold">確認存入</button></div>`;
+            } else {
+                area.innerHTML = `<div class="text-center py-6"><h1 class="text-5xl font-bold text-[#5a705c] mb-6">$ ${g.unitAmt}</h1><button onclick="doSave(${g.unitAmt}, ${g.unitAmt})" class="btn-green btn-action-big shadow-xl font-bold">確認存入</button></div>`;
+            }
+            document.getElementById('saveActionModal').style.display = 'flex';
+        }
+
+        function doSave(amt, marker) {
+            const g = goals.find(x => x.id === activeGoalId);
+            g.current += amt; g.history.push(marker);
+            saveAndRender(); openSaveAction(activeGoalId);
+        }
+
+        function undoLastSave() {
+            const g = goals.find(x => x.id === activeGoalId);
+            if (g.history.length === 0) return;
+            const lastMarker = g.history.pop();
+            // 如果是 365 模式，marker 本身就是金額；如果是 52 或固定模式，金額是 unitAmt
+            const amtToSubtract = (g.mode === '365') ? lastMarker : (g.mode === '52' ? g.unitAmt : lastMarker);
+            g.current -= amtToSubtract;
+            saveAndRender(); openSaveAction(activeGoalId);
+        }
+
+        // --- 記帳核心邏輯 ---
+        async function fetchCloudData() {
+            toggleLoader(true);
+            try {
+                const res = await fetch(API_URL);
+                records = (await res.json()).reverse();
+                renderLedger();
+            } catch (e) { console.error(e); }
+            toggleLoader(false);
+        }
+
+        async function saveToCloud() {
+            const amtElem = document.getElementById('amtInput');
+            if (!amtElem.value) return alert("請輸入金額");
+            const data = { date: document.getElementById('dateInput').value, type: currentType, cat: document.getElementById('catInput').value, method: document.getElementById('methodInput').value, attr: '變動支出', amt: parseFloat(amtElem.value), note: document.getElementById('noteInput').value };
+            toggleLoader(true);
+            try {
+                await fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
+                amtElem.value = ''; document.getElementById('noteInput').value = '';
+                setTimeout(fetchCloudData, 1500);
+            } catch (e) { toggleLoader(false); }
+        }
+
+        function renderLedger() {
+            const list = document.getElementById('list');
+            let bal = 0;
+            records.forEach(r => bal += (r.type === 'income' ? Number(r.amt) : -Number(r.amt)));
+            document.getElementById('balanceDisplay').innerText = '$ ' + bal.toLocaleString();
+            list.innerHTML = records.slice(0, 10).map(r => `
+                <div class="warm-card p-4 flex justify-between items-center border-none shadow-sm bg-[#faf9f7]">
+                    <div><span class="font-bold text-xs">${r.cat}</span><p class="text-[10px] text-gray-400">${r.date} ${r.note?'· '+r.note:''}</p></div>
+                    <p class="font-bold text-sm ${r.type==='income'?'text-[#5a705c]':'text-[#8a6d4d]'}">${r.type==='income'?'+':'-'}${Number(r.amt).toLocaleString()}</p>
+                </div>`).join('');
+        }
+
+        // --- 基礎通用 ---
+        function saveAndRender() { localStorage.setItem('v14_savings_data', JSON.stringify(goals)); renderGoals(); }
+        function renderGoals() {
+            const container = document.getElementById('goalList');
+            let total = 0;
+            container.innerHTML = goals.map(g => {
+                total += g.current;
+                const progress = Math.min(100, Math.floor((g.current / g.target) * 100));
+                return `<div class="warm-card p-6 shadow-sm"><div class="flex justify-between mb-3"><h4 class="font-bold text-base">${g.name}</h4><span class="text-xs font-bold text-[#5a705c]">${progress}%</span></div><div class="w-full bg-gray-100 rounded-full h-3 mb-4 overflow-hidden shadow-inner"><div class="bg-[#5a705c] h-full" style="width:${progress}%"></div></div><div class="flex justify-between items-center"><span class="text-[11px] font-bold text-[#8a6d4d]">已存: $${g.current.toLocaleString()}</span><button onclick="openSaveAction(${g.id})" class="btn-green px-10 py-4 text-base font-bold shadow-md">點我存錢</button></div></div>`;
+            }).join('');
+            document.getElementById('totalSavingsDisplay').innerText = '$ ' + total.toLocaleString();
+        }
+        function deleteCurrentGoal() { if(confirm("確定刪除嗎？")) { goals = goals.filter(g => g.id !== activeGoalId); saveAndRender(); closeModals(); } }
+        function switchPage(p) {
+            document.getElementById('page-ledger').classList.toggle('hidden', p !== 'ledger');
+            document.getElementById('page-savings').classList.toggle('hidden', p !== 'savings');
+            document.getElementById('nav-ledger').className = p === 'ledger' ? 'text-sm tab-active' : 'text-sm text-gray-400';
+            document.getElementById('nav-savings').className = p === 'savings' ? 'text-sm tab-active' : 'text-sm text-gray-400';
+        }
+        function changeType(t) { currentType = t; refreshForm(); }
+        function refreshForm() {
+            document.getElementById('catInput').innerHTML = cats[currentType].map(c => `<option>${c}</option>`).join('');
+            document.getElementById('methodInput').innerHTML = methods[currentType].map(m => `<option>${m}</option>`).join('');
+            document.getElementById('tabExp').className = currentType==='expense'?'font-bold text-[#8a6d4d] border-b-2 border-[#8a6d4d] pb-1':'text-gray-400 pb-1';
+            document.getElementById('tabInc').className = currentType==='income'?'font-bold text-[#5a705c] border-b-2 border-[#5a705c] pb-1':'text-gray-400 pb-1';
+        }
+        function updateSlogan() { document.getElementById('randomSlogan').innerText = slogans[Math.floor(Math.random() * slogans.length)]; }
+        function toggleLoader(s) { document.getElementById('loader').style.display = s ? 'flex' : 'none'; }
+    </script>
+</body>
+</html>
